@@ -27,8 +27,9 @@ def run():
 	tidal = tidalapi.Session(config=tidal_config)
 	tidal.login(config.get('tidal_auth', 'user'), config.get('tidal_auth', 'pass'))
 
-	player = Player()
-	gui = PlayerGUI(player, tidal)
+	gui = PlayerGUI(tidal)
+	player = Player(tidal, gui)
+	gui.set_player(player)
 
 	playlists = tidal.user.playlists()
 	for pl in playlists:

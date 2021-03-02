@@ -31,19 +31,21 @@ class GUIEventHandlers:
 		self.gui.switch_to_playlist(row.data)
 
 	def on_tracklist_row_activated(self, widget, row):
-		track = row.data
-
-		song_label = self.gui.builder.get_object('status_song')
-		song_label.set_label(track.name)
-
-		artist_label = self.gui.builder.get_object('status_artist')
-		artist_label.set_label(track.artist.name)
-
-		self.gui.load_image_from_url('status_album_image', track.album.picture(width=80, height=80))
-
-		url = self.gui.tidal.get_media_url(track.id)
 		self.gui.player.stop()
-		self.gui.player.queue(url)
+		self.gui.player.clear_queue()
+
+		# FIXME This is super messy – Tracklist should be kept in separate
+		# data structure. But it works for now.
+		at_start = False
+		for ch in widget.get_children():
+			if ch == row:
+				at_start = True
+
+			if not at_start:
+				continue
+
+			self.gui.player.queue(ch.data)
+
 		self.gui.player.play()
 
 	def on_status_volume_value_changed(self, widget, val):
@@ -67,9 +69,9 @@ class PlayerGUI:
 	active_playlist = None
 	play_state = False
 	tracklist_filter = None
+	player = None
 
-	def __init__(self, player, tidal):
-		self.player = player
+	def __init__(self, tidal):
 		self.tidal = tidal
 
 		self.event_handlers = GUIEventHandlers(self)
@@ -97,7 +99,10 @@ class PlayerGUI:
 		self.playback_timer = self.builder.get_object('status_playback_timer')
 		self.play_button_image = self.builder.get_object('play_button_image')
 
-		GObject.timeout_add_seconds(1, self.refresh_player_state)
+		GObject.timeout_add_seconds(1, self.update_playback_progress)
+
+	def set_player(self, player):
+		self.player = player
 
 	def run(self):
 		Gtk.main()
@@ -124,16 +129,15 @@ class PlayerGUI:
 			search in track.artist.name.lower(),
 		})
 
-	def refresh_player_state(self):
-		# FIXME Should probably track playing state and only update icon on state change
+	def update_playback_progress(self):
+		'''
+		Called once a second to update progress bar
+		'''
+
 		if not self.player.is_playing:
-			self.play_button_image.set_from_stock('gtk-media-play', Gtk.IconSize.LARGE_TOOLBAR)
-			self.status_progress.set_value(0)
-			self.playback_timer.set_label('0:00 / 0:00')
 			return True
 
-		self.play_button_image.set_from_stock('gtk-media-pause', Gtk.IconSize.LARGE_TOOLBAR)
-
+		# FIXME Should only get duration once
 		duration = self.player.get_duration()
 		position = self.player.get_position()
 
@@ -149,6 +153,30 @@ class PlayerGUI:
 
 		# self.status_progress.set_fill_level(67.0)
 		return True
+
+	def update_player_state(self, play_state, track):
+		'''
+		Called from player when play/pause state changes or a new track is
+		played
+		'''
+
+		if not play_state:
+			self.play_button_image.set_from_stock('gtk-media-play', Gtk.IconSize.LARGE_TOOLBAR)
+
+			# FIXME Should not reset during pause
+			self.status_progress.set_value(0)
+			self.playback_timer.set_label('0:00 / 0:00')
+			return
+
+		self.play_button_image.set_from_stock('gtk-media-pause', Gtk.IconSize.LARGE_TOOLBAR)
+
+		song_label = self.builder.get_object('status_song')
+		song_label.set_label(track.name)
+
+		artist_label = self.builder.get_object('status_artist')
+		artist_label.set_label(track.artist.name)
+
+		self.load_image_from_url('status_album_image', track.album.picture(width=80, height=80))
 
 	def add_track(self, track):
 		row = ListBoxRowWithData(data=track)
