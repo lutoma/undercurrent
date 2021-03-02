@@ -1,0 +1,24 @@
+#sidebar_box list {
+	background-color: transparent;
+}
+
+#sidebar_box list row {
+	padding: 8px 10px;
+}
+
+#playlist list {
+	background-color: transparent;
+	margin-top: 10px;
+}
+
+#playlist list row {
+	padding: 10px 15px;
+}
+
+#playlist_header {
+	background: @theme_base_color;
+}
+
+#playlist_header {
+	padding-right: 10px;
+}
